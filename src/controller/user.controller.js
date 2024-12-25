@@ -7,86 +7,9 @@ import { verifyUserToken } from "../middlewares/auth.middleware.js";
 // ***************************************** Register Controller Start *************************************************
 
 const registerUser = asyncHandler(async (req, res) => {
-  // ***************************************************************************************************/
-  //
-  // ***************************************** */
-  //? Sample Test
-  // res.status(200).json({
-  //   message: "User Registered successfully",
-  // });
-  // ***************************************** */
-  //
-  //
-  //
-  // *****************************************************/
-  //? STEPS FOR USER ( REGISTER / LOGIN ) AUTHENTICATION:
-  // *****************************************************/
-  //
-  //* 1. Get User Details
-  //* 2. Validate User ( Check if User already exists  - Login Page, User Not Exit - Registration Page)
-  //
-  //* (IF REGISTRATION)
-  //* 3. Validate User Details
-  //* 4. Encrypt Important Data (Like - Password)
-  //* 5. Create User Entry in Database
-  //* 6. Send Success Response to User
-  //
-  //
-  //
-  // ******************/
-  //? GET USER DETAILS:
-  // ******************/
-
-  //? From [ res.body ] we Get the User Details
-  //* Use `Postman` to `Sent Raw Data Request` inside `Body Tab` in Postman
-  // const { name, emailId, pass } = req.body;
-  // console.log("Name ->", name); // Output ->  Name ->  Arun
-  // console.log("Email ->", email); // Output ->  Email ->  test@mail.com
-  // console.log("Password ->", password); // Output ->  Password ->  ""
-  //
-  //
-  //
-  // ****************/
-  //? VALIDATE USER:
-  // ***************/
-
   const { fullName, email, password } = req.body;
 
-  //* Multiple Check
-  // const existedUser = await User.findOne({
-  //   $or: [{ username, email }],
-  // });
-
-  // if (existedUser) {
-  //   return throwApiError(res, 409, "Email / Username Already Exist");
-  // }
-
-  //* Single Check
-  const existedEmail = await UserModel.findOne({ email });
-
-  let existedUsername;
-
-  // if (username) {
-  //   existedUsername = await UserModel.findOne({ username });
-  // }
-
-  if (existedEmail || existedUsername) {
-    if (existedEmail) {
-      return throwApiError(res, 409, "Email Already Exist");
-    }
-
-    // if (existedUsername !== null) {
-    //   return throwApiError(res, 409, "Username Already Exist");
-    // }
-  }
-  //
-  //
-  //
-  // ***********************/
-  //? VALIDATE USER DETAILS:
-  // ***********************/
-
-  //? Empty Field Check Validation
+  // Check Blank Field
   if (
     !fullName ||
     !email ||
@@ -95,29 +18,21 @@ const registerUser = asyncHandler(async (req, res) => {
   ) {
     return throwApiError(res, 400, "All Fields are Required");
   }
-  //
-  //
-  //
-  // ******************************************/
-  //? ENCRYPT IMPORTANT DATA (LIKE - PASSWORD):
-  // ******************************************/
 
-  //* ALREADY DONE IN USER MODEL
+  // Check if Email Already Exist
+  const existedEmail = await UserModel.findOne({ email });
 
-  //
-  //
-  //
-  // *******************************/
-  //? CREATE USER ENTRY IN DATABASE:
-  // *******************************/
+  if (existedEmail) {
+    return throwApiError(res, 409, "Email Already Exist");
+  }
 
   const user = await UserModel.create({
     fullName,
-    // username: username.toLowerCase(),
     email,
     password,
   });
 
+  // Create User
   const userCreated = await UserModel.findById(user._id).select(
     "-password -refreshToken" //? Hide `password` and `refreshToken` in Response
   );
@@ -130,13 +45,9 @@ const registerUser = asyncHandler(async (req, res) => {
     );
   }
 
-  // ***************************************************************************************************/
-
   return res
     .status(201)
     .json(new ApiResponse(200, "User Registered Successfully"));
-  //
-  //
 });
 
 // ***************************************** Register Controller End *************************************************
@@ -177,89 +88,34 @@ const options = {
 };
 
 const loginUser = asyncHandler(async (req, res) => {
-  //
-  // *****************************************************/
-  //? STEPS FOR USER ( REGISTER / LOGIN ) AUTHENTICATION:
-  // *****************************************************/
-  //
-  //* 1. Get User Details
-  //* 2. Validate User & User Details
-  //
-  //* (IF LOGIN)
-  //* 3. Find User
-  //* 4. Check Password
-  //* 5. Send Access and Refresh Token through Cookies
-  //* 6. Send Success Response to User
-  //
-  //
+  // Get User Details
+  const { email, password } = req.body;
 
-  //* Get User Details
-  const { email, username, password } = req.body;
-  //
-  //
-  //
-  //* Empty Field Check Validation
-  // if (
-  //   !username ||
-  //   !email ||
-  //   !password ||
-  //   [username, email, password].some((value) => value.trim() === "")
-  // ) {
-  //   return throwApiError(res, 400, "All Fields are Required");
-  // }
-
-  if ((!email && !username) || !password || password.trim() === "") {
+  if (!email || !password || password.trim() === "" || email.trim() === "") {
     return throwApiError(res, 400, "All Fields are Required");
   }
-  //
-  //
-  //
-  //
-  //* Validate User
-  const trimEmail = email && email.trim();
-  const trimUserName = username && username.trim();
 
-  const validateQuery = email
-    ? { email: trimEmail }
-    : { username: trimUserName };
-
-  const existedUser = await UserModel.findOne(validateQuery);
-
-  // Only Email Use This
-  // const existedUser = await UserModel.findOne({email});
+  // Check if Email Not Found
+  const existedUser = await UserModel.findOne({ email });
 
   if (!existedUser) {
     return throwApiError(res, 409, "Email or Username Not Found");
   }
-  //
-  //
-  //
-  //* Validate User Details
+
+  // Check if Password Correct
   const passwordCorrect = await existedUser.isPasswordCorrect(password);
 
   if (!passwordCorrect) return throwApiError(res, 409, "Wrong Password");
-  //
-  //
-  //
-  //* Generate Tokens For User
+
   const { logUser, accessToken, refreshToken } = await generateToken(
     existedUser._id,
     res
   );
-  //
-  //
-  //
-
-  // ***************************************************************************************************/
-
-  //* Send Cookies With Response
-
-  console.log("User Login Successfully");
 
   return res
     .status(201)
-    .cookie("accessToken", accessToken, options) // Storing `accessTokens` Cookies
-    .cookie("refreshToken", refreshToken, options) // Storing `refreshToken` Cookies
+    .cookie("accessToken", accessToken, options) // Sending `accessTokens` Cookies
+    .cookie("refreshToken", refreshToken, options) // Sending `refreshToken` Cookies
     .json(
       new ApiResponse(
         200,
@@ -274,18 +130,6 @@ const loginUser = asyncHandler(async (req, res) => {
 // ***************************************** Logout Controller Start ***********************************************
 
 const logoutUser = asyncHandler(async (req, res) => {
-  //
-  // **********************/
-  //? STEPS FOR USER LOGOUT
-  // **********************/
-
-  // Get `Use Detail` and `Make Refresh Token Undefined for User`
-
-  //* Get User Detail From `User Authentication Middleware`
-
-  // console.log("User ID from req.user:", req.user._id);
-
-  //* Find User By `User ID` and Update `Refresh Token` to `null`
   await UserModel.findByIdAndUpdate(
     req.user._id,
     {
@@ -298,10 +142,8 @@ const logoutUser = asyncHandler(async (req, res) => {
     }
   );
 
-  // **************************************************************************************************
-
   return res
-    .status(201)
+    .status(200)
     .clearCookie("accessToken", options) // Removing `accessTokens` Cookies
     .clearCookie("refreshToken", options) // Removing `refreshToken` Cookies
     .json(new ApiResponse(200, "User Logged Out Successfully"));

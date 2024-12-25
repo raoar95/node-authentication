@@ -10,14 +10,8 @@ export const verifyUserToken = async (
   res,
   includeRefreshToken = false
 ) => {
-  // console.log("token...: ", token);
-  // console.log("tokenSecret...: ", tokenSecret);
-
   try {
-    // console.log("token...: ", token);
-    // console.log("tokenSecret...: ", tokenSecret);
     const userToken = jwt.verify(token, tokenSecret);
-    console.log("userToken......", userToken);
 
     const fieldsToExclude = includeRefreshToken
       ? "-password"
@@ -33,15 +27,12 @@ export const verifyUserToken = async (
 
     return user;
   } catch (error) {
-    // next(error);`
     return throwApiError(res, 401, error?.message || "Invalid Refresh Token");
   }
 };
 
 // User Token Authentication Function
 export const userTokenAuth = asyncHandler(async (req, res, next) => {
-  // console.log("Token received on backend:", req.header("Authorization"));
-
   console.log("Request Headers:", req.headers);
 
   try {
@@ -66,6 +57,5 @@ export const userTokenAuth = asyncHandler(async (req, res, next) => {
     next();
   } catch (error) {
     return throwApiError(res, 401, error?.message || "Invalid Access Token");
-    // next(error);
   }
 });
