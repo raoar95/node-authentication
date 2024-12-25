@@ -1,2 +1,2 @@
 export const DB_NAME = "VideoTube";
-export const SERVER_URI = process.env.SERVER_URI;
+export const SERVER_URL = process.env.SERVER_URI;
