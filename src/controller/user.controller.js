@@ -117,11 +117,11 @@ const loginUser = asyncHandler(async (req, res) => {
     .cookie("accessToken", accessToken, options) // Sending `accessTokens` Cookies
     .cookie("refreshToken", refreshToken, options) // Sending `refreshToken` Cookies
     .json(
-      new ApiResponse(
-        200,
-        { user: logUser, accessToken, refreshToken },
-        "User Logged In Successfully"
-      )
+      new ApiResponse(200, "User Logged In Successfully", {
+        user: logUser,
+        accessToken,
+        refreshToken,
+      })
     );
 });
 
@@ -182,11 +182,10 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
     .cookie("accessToken", accessToken, options) // Storing `accessTokens` Cookies
     .cookie("refreshToken", newRefreshToken, options) // Storing `refreshToken` Cookies
     .json(
-      new ApiResponse(
-        200,
-        { accessToken, refreshToken: newRefreshToken },
-        "Access Token Refreshed"
-      )
+      new ApiResponse(200, "Access Token Refreshed", {
+        accessToken,
+        refreshToken: newRefreshToken,
+      })
     );
 });
 
