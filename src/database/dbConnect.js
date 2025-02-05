@@ -1,8 +1,7 @@
 import mongoose from "mongoose";
 import { DB_NAME, SERVER_URL } from "../constant/constant.js";
 import { app } from "../app.js";
-
-const port = process.env.PORT || 5000;
+import { PORT } from "../constant/constant.js";
 
 const connectDB = async () => {
   try {
@@ -18,8 +17,8 @@ const connectDB = async () => {
       // process.exit(1);
     });
 
-    app.listen(port, () => {
-      console.log(`App listening on port ${port}`);
+    app.listen(PORT, () => {
+      console.log(`App listening on port ${PORT}`);
     });
   } catch (error) {
     console.error("Error connecting to MongoDB: ", error);

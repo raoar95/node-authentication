@@ -21,6 +21,12 @@ const userSchema = new Schema(
       type: String,
       required: [true, "Password is required"],
     },
+    otpAuth: {
+      otp: { type: String, required: false, default: "" },
+      sendTime: { type: Number, required: false, default: 0 },
+      expireTime: { type: Number, required: false, default: 0 },
+      token: { type: String, required: false, default: "" },
+    },
     refreshToken: {
       type: String,
     },
@@ -72,4 +78,5 @@ userSchema.methods.generateRefreshToken = function () {
   );
 };
 
-export const UserModel = mongoose.model("User", userSchema);
+export const UserModel =
+  mongoose.models.User || mongoose.model("User", userSchema);
