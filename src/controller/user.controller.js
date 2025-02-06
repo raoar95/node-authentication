@@ -5,15 +5,10 @@ import { UserModel } from "../models/user.model.js";
 import { asyncHandler } from "../utils/AsyncHandler.js";
 import { ApiResponse } from "../utils/ApiResponseHandler.js";
 import { throwApiError } from "../utils/ApiErrorHandler.js";
-import { generateEmailTemplate, sendEmail } from "../utils/EmailHandler.js";
+import { sendEmail, generateEmailTemplate } from "../utils/EmailHandler.js";
 import { generateOtp } from "../utils/RandomFunctions.js";
 
-/* Middleware */
-import { verifyUserToken } from "../middlewares/auth.middleware.js";
-
 /* Constant */
-// import { PRO_SERVER, LOCAL_SERVER } from "../constant/constant.js";
-
 const cookieOptions = {
   httpOnly: true,
   secure: true,
@@ -60,6 +55,19 @@ const checkExistedUser = async (res, base, errMsg) => {
   return existedUser;
 };
 
+// Get User Data
+const getUserData = async (userId) => {
+  const userData = await UserModel.findById(userId).select(
+    "-password -refreshToken -otpAuth"
+  );
+
+  if (!userData) {
+    return throwApiError(res, 500, "Error Fetching User Data");
+  }
+
+  return userData;
+};
+
 // ***************************************** Register Controller Start *************************************************
 
 const registerUser = asyncHandler(async (req, res) => {
@@ -78,7 +86,7 @@ const registerUser = asyncHandler(async (req, res) => {
   // Check if Email Already Exist
   const existedEmail = await UserModel.findOne({ email });
 
-  if (existedUser) {
+  if (existedEmail) {
     return throwApiError(res, 409, "Email Already Exist");
   }
 
@@ -134,7 +142,7 @@ const loginUser = asyncHandler(async (req, res) => {
   // Check if Password Correct
   const passwordCorrect = await existedUser.isPasswordCorrect(password);
 
-  if (!passwordCorrect) return throwApiError(res, 409, "Wrong Password");
+  if (!passwordCorrect) throwApiError(res, 409, "Wrong Password");
 
   const { logUser, accessToken, refreshToken } = await generateToken(
     existedUser._id,
@@ -189,20 +197,42 @@ const verifyOtp = asyncHandler(async (req, res) => {
     "Email Not Found"
   );
 
+  if (existedUser.otpAuth.otp === "") {
+    return throwApiError(res, 409, "Unauthorized Request");
+  }
+
+  const isOtpExpired =
+    existedUser.otpAuth.otp !== "" &&
+    new Date(existedUser.otpAuth.expireTime).getTime() < new Date().getTime();
+
+  if (isOtpExpired) {
+    return throwApiError(res, 409, "Otp Expired");
+  }
+
   const isOtpCorrect = req.body.otp === existedUser.otpAuth.otp;
 
   if (!isOtpCorrect) {
     return throwApiError(res, 409, "Invalid Otp");
   }
 
+  const userData = await getUserData(existedUser._id);
+
   existedUser.otpAuth.otp = "";
   existedUser.otpAuth.sendTime = 0;
+  existedUser.otpAuth.newRequestTime = 0;
+  existedUser.otpAuth.expireTime = 0;
 
   await existedUser.save();
 
-  return res
-    .status(200)
-    .json(new ApiResponse(200, "Otp Verified Successfully"));
+  const getResponse = () => {
+    if (req.url === "/verify-email-otp-login") {
+      return new ApiResponse(200, "Otp Verified Successfully", userData);
+    }
+
+    return new ApiResponse(200, "Otp Verified Successfully");
+  };
+
+  return res.status(200).json(getResponse());
 });
 
 // ********************************************* Verify Otp End ********************************************
@@ -212,9 +242,11 @@ const verifyOtp = asyncHandler(async (req, res) => {
 //================================================ Request Reset Password =====================================
 
 const requestResetPassword = asyncHandler(async (req, res) => {
-  const { email } = req.body;
-
-  const existedUser = await checkExistedUser(res, { email }, "Email Not Found");
+  const existedUser = await checkExistedUser(
+    res,
+    { email: req.body.email },
+    "Email Not Registered"
+  );
 
   // Generate Token
   const { _, accessToken } = await generateToken(existedUser._id, res);
@@ -228,48 +260,60 @@ const requestResetPassword = asyncHandler(async (req, res) => {
   //     : `${PRO_SERVER}/reset-password/${randomText}`;
 
   //? Reset With OTP
-  if (
-    existedUser.otpAuth.otp &&
-    new Date(existedUser.otpAuth.expireTime).getTime() > new Date().getTime()
-  ) {
+  const isNewRequestTime =
+    existedUser.otpAuth.otp !== "" &&
+    new Date(existedUser.otpAuth.newRequestTime).getTime() >
+      new Date().getTime();
+
+  if (isNewRequestTime) {
     return throwApiError(
       res,
       409,
       `Please Wait Until ${new Date(
-        existedUser.otpAuth.expireTime
+        existedUser.otpAuth.newRequestTime
       ).toLocaleTimeString()} for New Request`
     );
   }
 
+  const isRequestPassword = req.url === "/request-reset-password";
   const verificationCode = generateOtp();
 
   existedUser.otpAuth.otp = verificationCode;
   existedUser.otpAuth.sendTime = new Date().getTime();
-  existedUser.otpAuth.expireTime = existedUser.otpAuth.sendTime + 60000;
+  existedUser.otpAuth.newRequestTime = existedUser.otpAuth.sendTime + 60000;
+  existedUser.otpAuth.expireTime = existedUser.otpAuth.sendTime + 600000;
   existedUser.otpAuth.token = accessToken;
 
   await existedUser.save();
 
-  const message = generateEmailTemplate(verificationCode);
+  const message = isRequestPassword
+    ? generateEmailTemplate(verificationCode)
+    : generateEmailTemplate(verificationCode, "OtpLogin");
 
   // Send Email
-  await sendEmail(existedUser.email, "Reset TaskBuddy Password", message).catch(
-    () => throwApiError(res, 500, "Error During Sending Email")
-  );
+  await sendEmail(
+    existedUser.email,
+    `${
+      isRequestPassword ? "Reset TaskBuddy Password" : "TaskBuddy Account Login"
+    }`,
+    message
+  ).catch(() => throwApiError(res, 500, "Error During Sending Email"));
 
   return res
     .status(200)
     .cookie("accessToken", accessToken, cookieOptions)
     .json(
-      new ApiResponse(200, "Reset Email Sended Successfully", { accessToken })
+      new ApiResponse(
+        200,
+        `${isRequestPassword ? "Reset" : "Login"} Email Sended Successfully`,
+        { accessToken }
+      )
     );
 });
 
 //================================ Reset Password =====================================
 
 const resetPassword = asyncHandler(async (req, res) => {
-  const { password } = req.body;
-
   try {
     const existedUser = await checkExistedUser(
       res,
@@ -281,7 +325,7 @@ const resetPassword = asyncHandler(async (req, res) => {
       return throwApiError(res, 409, "Unauthorized Request");
     }
 
-    existedUser.password = password;
+    existedUser.password = req.body.password;
     existedUser.otpAuth.token = "";
 
     await existedUser.save();
@@ -299,40 +343,34 @@ const resetPassword = asyncHandler(async (req, res) => {
 
 // ******************************************* Reset Password End ******************************************
 
+// ************************************************ isAuth Start ********************************************
+
+const isAuth = asyncHandler(async (req, res) => {
+  const userData = await getUserData(req.user._id);
+
+  res
+    .status(200)
+    .json(new ApiResponse(200, "User Authenticated Successfully", userData));
+});
+
+// ************************************************ isAuth end ********************************************
+
 // **************************************** Renew Refresh Token Start ****************************************
 
 const refreshAccessToken = asyncHandler(async (req, res) => {
-  const incomingRefreshToken =
-    req.cookies.refreshToken || req.body.refreshToken;
-
-  if (!incomingRefreshToken) {
-    return throwApiError(res, 401, "Unauthorized Request");
-  }
-
-  const user = await verifyUserToken(
-    incomingRefreshToken,
-    process.env.REFRESH_TOKEN_SECRET,
-    res,
-    true
-  );
-
-  if (incomingRefreshToken !== user?.refreshToken) {
-    return throwApiError(res, 401, "Refresh token is expired or used");
-  }
-
-  const { _, accessToken, newRefreshToken } = await generateToken(
-    user._id,
+  const { _, accessToken, refreshToken } = await generateToken(
+    req.user._id,
     res
   );
 
   return res
     .status(201)
-    .cookie("accessToken", accessToken, cookieOptions) // Storing `accessTokens` Cookies
-    .cookie("refreshToken", newRefreshToken, cookieOptions) // Storing `refreshToken` Cookies
+    .cookie("accessToken", accessToken, cookieOptions)
+    .cookie("refreshToken", refreshToken, cookieOptions)
     .json(
       new ApiResponse(200, "Access Token Refreshed", {
         accessToken,
-        refreshToken: newRefreshToken,
+        refreshToken,
       })
     );
 });
@@ -346,5 +384,6 @@ export {
   verifyOtp,
   requestResetPassword,
   resetPassword,
+  isAuth,
   refreshAccessToken,
 };

@@ -4,21 +4,12 @@ import { UserModel } from "../models/user.model.js";
 import jwt from "jsonwebtoken";
 
 // Verify User Function
-export const verifyUserToken = async (
-  token,
-  tokenSecret,
-  res,
-  includeRefreshToken = false
-) => {
+export const verifyUserToken = async (token, tokenSecret, res) => {
   try {
     const userToken = jwt.verify(token, tokenSecret);
 
-    const fieldsToExclude = includeRefreshToken
-      ? "-password"
-      : "-password -refreshToken";
-
     const user = await UserModel.findById(userToken?._id).select(
-      fieldsToExclude
+      "-password -otpAuth"
     );
 
     if (!user) {

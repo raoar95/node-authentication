@@ -24,6 +24,7 @@ const userSchema = new Schema(
     otpAuth: {
       otp: { type: String, required: false, default: "" },
       sendTime: { type: Number, required: false, default: 0 },
+      newRequestTime: { type: Number, required: false, default: 0 },
       expireTime: { type: Number, required: false, default: 0 },
       token: { type: String, required: false, default: "" },
     },
