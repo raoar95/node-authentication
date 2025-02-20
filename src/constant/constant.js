@@ -5,6 +5,9 @@ export const SERVER_URL = process.env.MONGODB_URI;
 // Environment
 export const NODE_ENV = process.env.NODE_ENV;
 
+// Cors
+export const CORS_ORIGIN = process.env.CORS_ORIGIN;
+
 // Host
 export const PRO_SERVER = process.env.PRO_SERVER;
 export const LOCAL_SERVER = `http://localhost:${PORT}`;

@@ -35,15 +35,11 @@ userRouter.route("/verify-otp").post(userTokenAuth, verifyOtp);
 
 userRouter.route("/verify-email-otp-login").post(userTokenAuth, verifyOtp);
 
-userRouter
-  .route("/reset-password/:randomText")
-  .post(userTokenAuth, resetPassword);
+userRouter.route("/reset-password").post(userTokenAuth, resetPassword);
 
-userRouter
-  .route("/renew-refresh-token")
-  .post(userTokenAuth, refreshAccessToken);
+userRouter.route("/renew-refresh-token").get(userTokenAuth, refreshAccessToken);
 
-userRouter.route("/isAuth").post(userTokenAuth, isAuth);
+userRouter.route("/isAuth").get(userTokenAuth, isAuth);
 
 //=================================================== Routes End ===================================================
 

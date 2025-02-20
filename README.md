@@ -1,6 +1,6 @@
 # node-authentication
 
-COMPLETE MERN Backend Authentication
+COMPLETE MERN BASED BACKEND AUTHENTICATION
 
 ✅ User Registration
 ✅ User Login With & Without OTP (Email)
