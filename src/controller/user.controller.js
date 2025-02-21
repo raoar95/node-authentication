@@ -11,8 +11,9 @@ import { generateOtp } from "../utils/RandomFunctions.js";
 /* Constant */
 const cookieOptions = {
   httpOnly: true,
-  secure: process.env.NODE_ENV === "production", // Send only over HTTPS in production
-  sameSite: "None",
+  secure: process.env.NODE_ENV === "production",
+  sameSite: process.env.NODE_ENV === "production" ? "None" : "strict",
+  maxAge: 7 * 24 * 60 * 60 * 1000,
 };
 
 //============================================= Global Functions ================================================
